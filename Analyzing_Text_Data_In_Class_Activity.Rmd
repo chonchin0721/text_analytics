@@ -1,0 +1,266 @@
+---
+title: "Text Analysis - In_class_Activity"
+author: "Jessica She"
+date: '2023-05-18'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Analyzing text using stringr (stringi has similar functions that can perform wide range of functionalities while the stringr is much simpler to use)
+
+#### Implement important functions from stringr packages.   
+- str_c
+- str_sub   
+- str_extract   
+- str_detect   
+- str_remove   
+
+```{r load the required libraries}
+library(tidyverse) # Loads a suite of tidy packages 
+library(stringr) # redundant 
+library(readr) # redundant 
+```
+
+
+
+```{r format phone numbers}
+# Q1. Using str_c and str_sub format the phone numbers. 
+# 5039431234 should be formatted as (503) 943-1234
+# 5039433241 should be formatted as (503) 943-3241
+
+phone_numbers <- c("5039431234", "5039434321")
+
+```
+
+
+```{r Combine two character vectors}
+# Q2. Combine two character vectors names and phone numbers into a third vector with a space in between the strings 
+# 
+names <- c("Adams", "Sarah")
+phone_numbers <- c("5039431234", "5039434321")
+# Example. Third vector should be:
+# "Adams: 5039431234" "Sarah: 5039434321"
+
+# Create the third vector as concatenated_name 
+concatenated_names_phone <- str_c(names, ":", phone_numbers)
+```
+
+
+```{r Combine two character vectors - version2}
+# Q3. Combine two character columns of a dataframe (names and phone numbers) into a third columns or vector with a ": space" in between the strings 
+# 
+names <- c("Adams", "Sarah")
+phone_numbers <- c("5039431234", "5039434321")
+contacts <- data.frame(names, phone_numbers)
+# Example. Third vector should be (part of dataframe):
+# "Adams: 5039431234" "Sarah: 5039434321"
+
+# Create the third vector as concatenated_name 
+concatenated_names_phone <- str_c(contacts$names,
+                                  ":", 
+                                  contacts$phone_numbers)
+```
+
+```{r return the length of sentences}
+# Q4. Create a vector of review sentences length. Reviews are in the text column 
+reviews <- data.frame(text = c(" I do like writing reviews especially for used phones because it helps everyone.",
+                                  "Any new phone from Apple costs a fortune",
+                                  "Once you turn on your new/used iphone and enable bluetooth and set it next to your old iphone it pretty much transfers all your data"))
+```
+
+```{r matching keywords}
+# Q5. Using str_extract extract the word iphone from each of these reviews
+
+```
+
+
+```{r Detecting keywords from a dataframe columns}
+# Q6. Using str_detect extract reviews that contain "new" in the text column 
+# str_detect returns a logical vector 
+
+
+```
+
+#### Use the below matching patterns: 
+?: 0 or 1
++: 1 or more
+*: 0 or more
+
+
+``` {r Extract pay information}
+# Q7. Extract only the salary portion from the text e.g, from "Pay: $49,359" extract $49,359 
+# Use str_extract 
+
+salaries_vector <- c("Pay: $49,359", "Estimated salary: $45,000", "This is a $109,201 paying job")
+str_extract(salaries_vector, "\\$[:digit:]+,[:digit:]+")
+```
+
+
+#### Use the number of matches to extract the required string for the next question:
+
+{n}: exactly n
+{n,}: n or more
+{,m}: at most m
+{n,m}: between n and m
+
+- Extract Ip Addresses from this error log 
+- https://www.ibm.com/docs/en/zos/2.1.0?topic=problems-example-log-file
+
+sample_error_log <- "03/22 08:51:06 INFO   :...read_physical_netif: index #0, interface VLINK1 has address 129.1.1.1, ifidx 0
+03/22 08:51:06 INFO   :...read_physical_netif: index #1, interface TR1 has address 9.37.65.139, ifidx 1
+03/22 08:51:06 INFO   :...read_physical_netif: index #2, interface LINK11 has address 9.67.100.1, ifidx 2
+03/22 08:51:06 INFO   :...read_physical_netif: index #3, interface LINK12 has address 9.67.101.1, ifidx 3
+03/22 08:51:06 INFO   :...read_physical_netif: index #4, interface CTCD0 has address 9.67.116.98, ifidx 4
+03/22 08:51:06 INFO   :...read_physical_netif: index #5, interface CTCD2 has address 9.67.117.98, ifidx 5
+03/22 08:51:06 INFO   :...read_physical_netif: index #6, interface LOOPBACK has address 127.0.0.1, ifidx 0"
+
+
+```{r Extract string using pattern}
+# Q8. Extract Ip Addresses from this error log
+# 
+sample_error_log <- "03//22 08:51:06 INFO   :...read_physical_netif: index #0, interface VLINK1 has address 129.1.1.1, ifidx 0
+03/22 08:51:06 INFO   :...read_physical_netif: index #1, interface TR1 has address 9.37.65.139, ifidx 1
+03/22 08:51:06 INFO   :...read_physical_netif: index #2, interface LINK11 has address 9.67.100.1, ifidx 2
+03/22 08:51:06 INFO   :...read_physical_netif: index #3, interface LINK12 has address 9.67.101.1, ifidx 3
+03/22 08:51:06 INFO   :...read_physical_netif: index #4, interface CTCD0 has address 9.67.116.98, ifidx 4
+03/22 08:51:06 INFO   :...read_physical_netif: index #5, interface CTCD2 has address 9.67.117.98, ifidx 5
+03/22 08:51:06 INFO   :...read_physical_netif: index #6, interface LOOPBACK has address 127.0.0.1, ifidx 0"
+
+str_extract_all(sample_error_log, "[:digit:]{1,3}\\.[:digit:]*\\.[:digit:]*\\.[digit:]*")
+
+```
+
+#### Text pre-processing 
+
+``` {r replace new line and carriage return characters}
+# Q9. Replace new line and carriage return characters \n and \r with ""
+job_description <- "We offer competitive salaries, benefits, equity, and unlimited PTO. \n
+\r\r\r Conveyer is an Equal Opportunity Employer.\n\n \r\n"
+
+str_replace_all(job_description, "\\n|\\r", "")
+```
+
+
+
+``` {r regular_expressions1}
+# Q10. Use stringr::words for this question  
+# Extract words that end with "ble" such as 
+# The output should contain words: "able"        "available"   "double"      "possible"    "probable"    "responsible" "table" "terrible"    "trouble"
+stringr::words[
+!is.na(
+  str_extract(stringr::words, "[:alpha:]*ble$"))]
+```
+
+``` {r regular_expressions2}
+# Q11. Use stringr::words for this question 
+# Extract words that end with "ble" such as 
+# The output should contain words: "able"        "available"   "double"      "possible"    "probable"    "responsible" "table" "terrible"    "trouble"
+# Also, extract words that start with ex
+
+# Final output should be: 
+# [1] "able"        "available"   "double"      "exact"       "example"     "except"      "excuse"      "exercise"
+# [9] "exist"       "expect"      "expense"     "experience"  "explain"     "express"     "extra"       "next"     
+# [17] "possible"    "probable"    "responsible" "table"       "terrible"    "trouble" 
+stringr::words[
+!is.na(
+  str_extract(stringr::words, "[:alpha:]*ble$|^ex[a-z]*"))]
+
+```
+
+``` {r convert the text to lower case}
+# Q12. Convert the tweets to lower case. Use str_to_lower()
+tweets <- c("Analysts say generalized discord percolates in the U.S. to a greater degree than the powerful on Wall Street or in Washington might want to admit.", "The collapse of Silicon Valley Bank and Signature Bank is expected to cost the Federal Deposit Insurance Corp.’s fund roughly $22.5 billion, the agency estimates.
+
+Will banks ask you to pay additional fees to help fill the hole? Experts weighed in.")
+str_to_lower(tweets)
+
+```
+
+``` {r remove "The/the" keywords}
+# Q13. Using str_remove remove "The/the" keyword from the stringr::sentences
+# Convert the output to a tibble and print. Do not need to create a new variable out of it. 
+head(str_remove_all(stringr::sentences, "The|the"))
+```
+
+
+``` {r extract_sentence_containing_requirements}
+# Q14. Read the job descriptions column from the job details CSV file. Read the file into a tibble, "job_details". Extract the jobs that contain keywords,"analysis", and "ability"
+library(readxl)
+jobs <- readxl::read_xlsx(str_c(getwd(),"/Input/indeed_job_details (1).xlsx"))
+jobs_with_analysis_ability <- jobs[!is.na(str_extract(jobs$Description, "analysis|ability")),]
+```
+
+
+``` {r pre-processing}
+# Q15. Use Job description for the following questions. 
+#' Convert the job description to lower case 
+#' Remove carriage return characters, new line characters. Remove the numeric information such as salary ($100,000.99), duration (6 months), etc. Other examples that we don’t want: $65,000.00 - $75,000.00
+#' Remove special characters such as "@{}&!.[]". Replace the removed characters with a space "".
+#' Check if the final job_details dataset is updated properly. 
+
+```
+
+```{r display stop_words from the tidytext package}
+# Q16. Display the stop_words dataset from the tidytext package 
+library(tidytext)
+tidytext::stop_words
+```
+
+
+
+``` {r pre-processing-3}
+# Q17. Using the unnest_tokens of the tidytext package, convert the sentences to keywords 
+# Using the anti_join remove the stop_words from the output of unnest_tokens output 
+# Count the words and then rank the word by the frequency using dense_rank function. 
+# 
+jobs %>%
+  select(Description) %>%
+  unnest_tokens(word, Description) %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  arrange(desc(n))
+```
+
+
+
+``` {r pre-processing-4}
+# Q18. Plot the words and their frequencies on a bar plot 
+# 
+topkeywords <- jobs %>%
+  select(Description) %>%
+  unnest_tokens(word, Description) %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  arrange(desc(n))
+
+library(ggplot2)
+top_10_keywords <-topkeywords %>%
+  filter(n>=350)
+ggplot(top_10_keywords) +
+  geom_bar(aes(x = word, y = n), stat = "identity")
+```
+
+
+
+``` {r wordcloud}
+# Q19. Install "wordcloud" package and plot the wordcloud using the wordcloud function. 
+library(wordcloud)
+topkeywords <- topkeywords %>%
+  filter(n >= 10)
+wordcloud(topkeywords$word, topkeywords$n)
+topkeywords
+```
+
+
+
+``` {r wordcloud2}
+# Q20. Install "wordcloud2" package and plot the wordcloud using the wordcloud2 function. 
+library(wordcloud2)
+wordcloud2(topkeywords)
+
+```
+
+
