@@ -73,6 +73,7 @@ reviews <- data.frame(text = c(" I do like writing reviews especially for used p
 
 ```{r matching keywords}
 # Q5. Using str_extract extract the word iphone from each of these reviews
+str_extract_all(reviews, "iphone")
 
 ```
 
@@ -80,7 +81,7 @@ reviews <- data.frame(text = c(" I do like writing reviews especially for used p
 ```{r Detecting keywords from a dataframe columns}
 # Q6. Using str_detect extract reviews that contain "new" in the text column 
 # str_detect returns a logical vector 
-
+str_detect(reviews, "new")
 
 ```
 
