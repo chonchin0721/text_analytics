@@ -202,6 +202,18 @@ jobs_with_analysis_ability <- jobs[!is.na(str_extract(jobs$Description, "analysi
 #' Remove special characters such as "@{}&!.[]". Replace the removed characters with a space "".
 #' Check if the final job_details dataset is updated properly. 
 
+jobs$Description <- str_to_lower(jobs$Description)
+jobs$Description <- str_remove_all(jobs$Description,
+                                   "\\n|\\r")
+jobs$Description <- str_remove_all(jobs$Description,
+                                   "\\$[:digit:]+, [:digit:]+")
+jobs$Description <- str_remove_all(jobs$Description,
+                                   "[:digit:]")
+jobs$Description <- str_remove_all(jobs$Description,
+                                   "@\\$^&\\{\\}#!\\-\\+")
+jobs$Description <- str_remove_all(jobs$Description,
+                                   "\\[|\\]|\\(|\\)")
+
 ```
 
 ```{r display stop_words from the tidytext package}
