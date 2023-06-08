@@ -1,0 +1,166 @@
+---
+title: "Introduction_to_Neural_Network"
+author: "Jessica She"
+date: "2023-06-07"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load library and read file}
+library(tidyr)
+library(neuralnet)
+library(dplyr)
+library(stringr)
+library(readr)
+library(tidytext)
+library(tidyverse)
+library(textdata)
+library(plyr)
+admissions <- read_csv(str_c(getwd(),"/Input/Student_Admissions.csv"))
+```
+
+```{r data processing}
+# Do not compare the apple to oranges 
+# Normalization: x- mean(x)/sd(x) or Max-Min Normalization: (x - min(x))/(max(x)-min(x))
+
+max_min_normalization <- function(X) {
+  X <- (X - min(X))/(max(X) - min(X))
+  X
+}
+
+# Normalize all the numeric input columns except ID and Admit Probability Column 
+admissions_matrix <- apply(admissions[,c(-1,-9)],
+                           2,
+                           FUN = max_min_normalization)
+```
+
+``` {r validation}
+head(admissions$GRE - min(admissions$GRE))/(max(admissions$GRE) - min(admissions$GRE))
+```
+
+```{r Convert output from continuous value to binary}
+admissions$binary_output <- ifelse(admissions$Admit_Probability > 0.5, 1, 0)
+```
+```{r setting training data-set}
+# Any machine learning problem, the steps are common:
+# Training dataset (use this to create a model) - 80% of data
+# Test dataset (20% for testing)
+# Validation (standard process)
+# k-fold cross-validation (common validation approach in machine learning)
+set.seed(1234)
+training_rows <- sample(1:500, #Random row numbers of my input dataset size
+                        400 #400 observations are part of training
+                        )
+
+train <- cbind(
+  admissions_matrix[training_rows,],
+  admissions[training_rows, "binary_output"])
+```
+
+```{r creating testing data-set}
+testing_rows <- c()
+for(i in 1:500) {
+  if(i %in% training_rows) {
+    next
+  }
+  testing_rows <- append(testing_rows, i)
+}
+
+test <- cbind(
+  admissions_matrix[testing_rows,],
+  admissions[testing_rows, "binary_output"])
+```
+
+```{r Create a neural Network Model}
+# . all the possible/available input columns 
+model <- neuralnet(binary_output ~ .,
+                   data = train,
+                   hidden = 1, 
+                   linear.output = FALSE, 
+                   err.fct = "ce"
+                   )
+```
+
+```{r plotting the model}
+# The Number of Iterations is the Steps
+# The threshold of 0.01 means if it's less than <0.01 errors, the iterations will stop
+plot(model)
+```
+
+```{r test the model and make the prediction}
+#Make predictions 
+test_outcome <- predict(model,
+                        test[,c(-8)])
+
+# Convert output prediction to binary
+test_outcome <- ifelse(test_outcome >0.5,
+                       1,0)
+
+# The overall accuracy is 97%
+table(test[, c(8)],
+      test_outcome)
+```
+
+```{r Create training dataset 2} 
+set.seed(1234)
+
+train_one <- cbind(
+  admissions_matrix[training_rows,],
+  admissions[training_rows, "Admit_Probability"])
+
+test_one <- cbind(
+  admissions_matrix[testing_rows,],
+  admissions[testing_rows, "Admit_Probability"])
+
+```
+
+```{r Run regression, predict the continuous value for model one}
+model_one <- neuralnet(Admit_Probability ~ .,
+  data = train_one,
+  hidden = 1,
+  linear.output = TRUE,
+  err.fct = "sse"
+  )
+```
+
+```{r plot model_one}
+plot(model_one)
+```
+```{r test the model and make the prediction for model_one}
+#Make predictions 
+test_outcome_one <- predict(model,
+                        test_one[,-8])
+
+head(test_one[,8])
+
+# Look at MSE (to be low) 
+# Mean Square Error 
+# (True Value - Predicted Value)^2/Total number of observations. 
+# The lower the MSE, the better the model
+
+MSE <- sum((test_one[,8] - test_outcome_one)^2)/(100-1)
+MSE
+```
+```{r run linear regression}
+# If run multiple regression and get a better MSE, then neural network is no good
+model_lm <- glm(Admit_Probability ~ .,
+  data = as.data.frame(train_one))
+predict_lm <- predict(model_lm, as.data.frame(test_one[, -8]))
+MSE <- sum((test[,8]- predict_lm)^2)/(100-1)
+MSE
+summary(model_lm)
+```
+```{r}
+train_outcome_two <- predict(model_one,
+                         train_one[,-8])
+
+test_outcome_two <- predict(model_one, test_one[,-8])
+
+test_MSE <- sum((test_one[,8] - test_outcome_two)^2)/(100)
+train_MSE <- sum((train_one[,8] - train_outcome_two)^2)/(100)
+print(paste(train_MSE, test_MSE))
+
+```
