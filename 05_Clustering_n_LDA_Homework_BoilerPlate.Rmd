@@ -1,0 +1,346 @@
+---
+title: "Clustering and Topic Models Homework"
+author: "Jessica She"
+date: '2023-06-09'
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE, 
+                      warning = FALSE)
+```
+
+#### K-Means Clustering and LDA Topic Models are explained in the file 
+
+```{r 1. Load the required libraries}
+library(tidyverse)
+library(skmeans) # For running Spherical K-Means clustering 
+library(factoextra)
+library(fpc) # Plot clusters using a DTM matrix. Base plot style plotting 
+library(readxl)
+library(tm)
+library(stringr) 
+library(tidytext)
+library(textcat)
+library(textmineR)
+library(cluster)
+library(SnowballC)
+library(dplyr)
+library(wordcloud)
+library(topicmodels)
+library(ldatuning)
+library(modeltools)
+library(clue)
+```
+
+#### **Q1.** Plot the exploratory analysis graph using the iris dataset, Sepal.Length and Sepal.Width      
+**Output should resemble figure the one given in the markdown output**
+
+```{r 2. Explore iris dataset}
+# There are three different types of flowers in the iris dataset. Perform K-means clustering to fetch these three clusters clusters based on the rest of the properties. 
+
+# Load the iris dataset
+data(iris)
+
+# View the first 5 rows of the iris dataset
+head(iris, 5)
+
+# Plotting Iris Dataset 
+ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +
+  geom_point() +
+  labs(x = "Sepal Length", y = "Sepal Width", title = "Iris Scatterplot")
+```
+
+```{r 3. Perform K-Means clustering on iris dataset to extract three clusters}
+# Use the kmeans function from stats package to create the clusters. 
+# Use all the numeric fields
+
+# Select properties for clustering
+iris_properties <- iris[, 1:4]
+
+# set seed for reproducibility (generate the same squence of random numbers)
+set.seed(1234) 
+kmeans_model <- kmeans(iris_properties, center = 3)
+
+# retrive the clusters 
+cluster_labels <- kmeans_model$cluster
+
+# plotting to see the count of elements mapped to each cluster
+barplot(kmeans_model$size)
+
+```
+
+#### **Q2.** Perform K-Means clustering on iris dataset to extract three clusters. Create a clusters plot using fviz_cluster 
+**Output should resemble figure the one given in the markdown output**
+
+```{r Q2}
+fviz_cluster(kmeans_model, data = iris_properties)
+```
+
+*Complete the below questions*
+- Add the clusters to the iris dataset, capture their frequency, and validate them against the true flower types. The output should look something like this (the numbers may not match exactly). Please explain how you interpreted the cluster outputs. Did the K-Means algorithm properly cluster the output?): 
+
+```{r Q3}
+# Adding clusters to the iris dataset
+iris$Cluster <- cluster_labels
+
+# Capturing freqeuncy 
+cluster_freq <- table(cluster_labels)
+
+#
+validation_table <- table(iris$Species, iris$Cluster)
+validation_table
+
+```
+From the validation_table, we can see that there are 50 observations of "setosa" assigned to cluster one, and no observations from the two other species, meaning the K-Means algorithm correctly assigned all the setosa species to this cluster. However, in cluster 2, there are 48 observations of versicolor and 14 virginica, suggesting the algorithim assigned some virginica species into Cluster 2 incorrectly. Lastly, for cluster 3, it contains 36 observations of virginica, and 2 observations of versicolor, meaning the 2 versicolor are in the wrong cluster.
+
+*Complete the below questions using the misinformation dataset*
+1. Read the misinformation dataset. 
+2. Text pre-processing steps: 
+  a. Use only English tweets 
+  b. Remove punctuation characters, special characters, numbers, strip whitespaces and remove stopwords 
+  c. Additionally, stem words (Use: function stemDocument. Please look at the help for more details)
+2. Use Spherical K-Means clustering to create 10 clusters and validate a few tweets from one of the cluster and provide interpretations if the clusters are meaningful. 
+3. Plot the clusters using plotcluster() function. 
+4. Also plot the cluster frequencies as bar plot. 
+
+```{r Read the misinformation tweets file}
+
+# read tweet data
+misinformation_data <- read_csv(str_c(getwd(), "/Input/Misinformation_Tweets.csv"))
+
+```
+
+```{r Text Pre-processing}
+# Text pre-processing steps
+# Use only English tweets
+misinformation_data <- subset(misinformation_data, textcat(misinformation_data$TWEET_TEXT) == "english")
+
+# # Select only the TWEET_TEXT C
+# misinformation_data <- misinformation_data %>%
+#   select(TWEET_TEXT)
+
+# Remove punctuation characters, special characters, numbers, strip whitespaces, and remove stopwords
+
+text_pre_process <- function(corpus) {
+  # Remove line breaks
+  corpus <- tm_map(corpus, content_transformer(gsub), pattern = "\n", replacement = " ")
+  
+  # Remove special characters
+  corpus <- tm_map(corpus, content_transformer(gsub), pattern = "[^[:alnum:][:space:]]", replacement = "")
+  
+  # Stemming
+  corpus <- tm_map(corpus, stemDocument)
+  
+  corpus <- tm_map(corpus, tolower)
+  corpus <- tm_map(corpus, removeNumbers)
+  corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, removeWords, stopwords(kind = "en"))
+  
+  
+  return(corpus)
+}
+
+corpus <- Corpus(VectorSource(misinformation_data$TWEET_TEXT))
+corpus <- text_pre_process(corpus)
+misinformation_data_processed <- corpus$content
+misinformation_data_processed <- data.frame(tweets = corpus$content, harm = misinformation_data$Harm)
+misinformation_data_processed$tweets <- str_squish(misinformation_data_processed$tweets)
+```
+
+```{r  Use Spherical K-Means clustering to create 10 clusters and validate a few tweets}
+# Extract corpus
+corpus <- Corpus(VectorSource(misinformation_data_processed$tweets))
+
+# Create dtm using the corpus
+dtm <- DocumentTermMatrix(corpus,
+                          control = list(weighting =
+                                         function(x)
+                                         weightTfIdf(x, normalize =
+                                                     FALSE))
+                          )
+
+# Use k-mean clustering to create 10 clusters
+set.seed(12345)
+skmeans_model <- skmeans(dtm,
+                         10,
+                         m =1.2,
+                         control = list(nruns = 10, verbose = FALSE))
+
+# Validate a few tweets, validating cluster one
+cluster_assignments <- skmeans_model$cluster
+cluster_no <- 1
+cluster_tweets <- misinformation_data_processed$tweets[cluster_assignments == cluster_no]
+head(cluster_tweets,5)
+
+# Validate Cluster two
+cluster_no_two <- 2
+cluster_tweets_two <- misinformation_data_processed$tweets[cluster_assignments == cluster_no_two]
+head(cluster_tweets_two,5)
+
+# Generating Word Cloud to look at different cluster and topics
+cluster_prototypes <- cl_prototypes(skmeans_model)
+cluster_prototypes <- t(cluster_prototypes)
+comparison.cloud(cluster_prototypes, max.words = 100)
+
+# Extracting the top words
+top_words <- sort(cluster_prototypes[,5], decreasing = T)[1:10]
+top_words <- as.data.frame(top_words)
+top_words <- data.frame(cluster1_words = row.names(top_words))
+top_words
+```
+From the cluster and word cloud, we can see that the clustering has meaning. There's a category pertains to wash and sanitize. There's a different category on wearing mask. 
+
+```{r  Use plotting bar graph} 
+# # plot clusters using plotclusters()
+# plotcluster(dist(dtm, method = "euclidean"),
+             # cluster_assignments)
+
+# plot cluster frequencies as bar plot
+barplot(table(cluster_assignments))
+```
+
+*Complete the below questions using the misinformation dataset*
+1. Using the misinformation data, create a topic model and print the topics summary. 
+2. Create a dataframe of tweets and name it as misinformationTweets.
+3. misinformationTweets contains both the highly harmful and less harmful tweets 
+4. Use the CreateDtm function of textmineR package to create a dtm matrix. Make sure you pass the doc_names to identify each tweet as a single document. For this use, doc_names = rownames(<<misinformation dataset>>). Also, use the ngram_window = c(1, 2) option while creating DTM 
+5. Fit the LDA model model for the High-Harm tweets. Generate 15 topics and use 500 iterations while fitting the LDA topic model. Name the topic model you create as lda_misinformation_high. If you pass the argument calc_r2 = TRUE to the FitLdaModel, then you would be able to create the r2 value for the topic model. Print the r2 of the LDA model. You can print it usimg <<model>>$r2
+6. Plot the coherence histogram. Coherence value would have been calculated and stored in the lda_misinformation_high$coherence  
+7. Capture the top 15 terms for each topic into top_terms member of lda model object. Refer to the help documentation of the GetTopTerms function for more details. 
+8. Assigning the labels for each topic using the set of topic keywords is the most important task of topic modeling. The textmineR package provides a simple implementation of assigning the topic lables using the best N-grams with the highest theta value. Phi is the word probability distribution per topic and theta is the topic-level probability distribution over the documents. 
+
+Here in the below code, if the probability of a topic related for a particular tweet (one tweet out of all the documents) is less than 5% it is considered as not so useful and is given a zero probability. assignments variable/member of the lda_misinformation_high object holds the probable topic that the tweet is related to (probability using theta) within the 15 topics and assigns the corresponding labels.  
+
+
+```{r Create dataframe of tweets}
+# Create a dataframe of tweets and name it as misinformationTweets
+misinformationTweets <- misinformation_data_processed
+``` 
+
+```{r Split data by harm level}
+data_high_harm <- misinformationTweets %>% filter(harm == 'High_Harm')
+data_low_harm <- misinformationTweets %>% filter(harm == 'Low_Harm')
+```
+
+```{r create dtm}
+# create dtm
+set.seed(123)
+dtm_high_harm <- CreateDtm(
+  doc_vec = data_high_harm$tweets,
+  doc_names = rownames(data_high_harm),
+  ngram_window = c(1, 2),
+  verbose = FALSE)
+```
+
+```{r create LDA model}
+set.seed(123)
+lda_misinformation_high <- FitLdaModel(dtm = dtm_high_harm,
+                         k = 15, # number of topic
+                         iterations = 500,
+                         calc_r2 = T)
+
+# For overall goodness of fit 
+lda_misinformation_high$r2
+```
+The r2 value of .19 suggests the LDA model explains 19.4% of the variance in the text data. Topic generated by the model capture some patterns and structure in the documents, but still some amount of unexplained variance, and the model may not fully capture all the underlying topics in the misinformationTweets data set.
+
+```{r review top 15 terms with the highest phi}
+lda_misinformation_high$top_terms <- GetTopTerms(phi = lda_misinformation_high$phi,M = 15)
+data.frame(lda_misinformation_high$top_terms)
+```
+
+```{r Plotting Coherence Histogram}
+lda_misinformation_high$coherence
+hist(lda_misinformation_high$coherence, main = "Coherence Histogram", xlab = "Coherence Value")
+```
+
+```{r Review Prevalence Value}
+lda_misinformation_high$prevalence <- colSums(lda_misinformation_high$theta)/sum(lda_misinformation_high$theta)*100
+lda_misinformation_high$prevalence
+```
+
+```{r Assign Labels}
+tmp <- lda_misinformation_high
+tmp$assignments <- tmp$theta 
+tmp$assignments[tmp$assignments < 0.05 ] <- 0
+tmp$labels <- LabelTopics(
+    assignments = tmp$assignments, 
+    dtm = dtm_high_harm, 
+    M = 2)
+tmp$assignments <- 
+    tmp$assignments / rowSums(tmp$assignments)
+tmp$assignments[ is.na(tmp$assignments) ] <- 0
+head(tmp$assignments)
+tmp$num_docs <- colSums(tmp$assignments > 0)
+```
+
+9. Cluster topics together in a dendrogram. Calculate the Hellinger distance using CalcHellingerDist method and using the phi vectors (or the word probabilities of the topics). Perform Hierarchical clustering using hclust method and the linguistic distance. Calculated using the CalcHellingerDist method. Use the "ward.D" agglomerative clustering technique. Limit the number of clusters to 10 instead of 15 based on the hclust you have calculated earlier.
+```{r cluster topics together in dendrogram}
+# Calculate Hellinger distance
+lda_misinformation_high$linguistic <- CalcHellingerDist(lda_misinformation_high$phi)
+
+# Perform hierarchical clustering
+hclust_result <- hclust(as.dist(lda_misinformation_high$linguistic), method = "ward.D")
+
+# Limit the number of clusters to 10
+clusters <- cutree(hclust_result, k = 10)
+
+# Assign labels to the clusters
+cluster_labels <- paste(clusters, lda_misinformation_high$labels[, 1])
+
+# Plot dendrogram
+plot(hclust_result, labels = cluster_labels)
+```
+
+10. Create labels for the clusters. The code sample above created two set of labels using the LabelTopics function. You could combine these two labels into one as shown below code:
+
+
+```{r combining labels}
+
+lda_misinformation_high$hclust$labels <- 
+    paste(lda_misinformation_high$hclust$labels, lda_misinformation_high$labels[ , 1])
+
+```
+
+11. Plot the hclust of your model using plot function 
+```{r plotting hclust}
+# Perform hierarchical clustering
+hclust_result <- hclust(as.dist(lda_misinformation_high$linguistic), method = "ward.D")
+
+# Plot dendrogram
+plot(hclust_result)
+
+```
+The Dendrogram above similarity between topics. We can see topic 3 and topic 7 have greater similarity. Topic 4 and Topic 14 are similar and so forth. 
+
+12. Finally, make a summary table
+
+```{r compile summary}
+lda_misinformation_high$summary <- data.frame(
+  topic = rownames(lda_misinformation_high$phi),
+  coherence = round(lda_misinformation_high$coherence, 3),
+  prevalence = round(lda_misinformation_high$prevalence, 3),
+  top_terms = apply(lda_misinformation_high$top_terms, 2, paste, collapse = ", ")
+)
+
+mod_high <- lda_misinformation_high$summary %>%
+  `rownames<-`(NULL)
+
+mod_high
+```
+From looking at the table summary, we can see that the highest coherence score (t_2) with 0.694, contains words like nose, cough, cold, fever, pneuomnia. It seems to be symptoms. It has high coherence score, and moderate prevalence, meaning they are somewhat used in other review. 
+
+```{r}
+mod_high %>% pivot_longer(cols = c(coherence,prevalence)) %>%
+  ggplot(aes(x = factor(topic,levels = unique(topic)), y = value, group = 1)) +
+  geom_point() + geom_line() +
+  facet_wrap(~name,scales = "free_y",nrow = 2) +
+  theme_minimal() +
+  labs(title = "Best topics by coherence and prevalence score",
+       subtitle = "Tweets Reviews",
+       x = "Topics", y = "Value")
+```
+
